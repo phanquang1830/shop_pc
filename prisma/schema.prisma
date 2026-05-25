@@ -1,15 +1,190 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
+
+  output = "../src/generated/prisma"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "mysql"
+
+  url = env("DATABASE_URL")
+}
+
+model User {
+  user_id Int @id @default(autoincrement())
+
+  username String @unique
+  email    String @unique
+  password String
+
+  role   Role    @default(USER)
+  avatar String? // dấu ? nghĩa là có thể null
+  status Status  @default(INACTIVE)
+
+  cart Cart?
+
+  order             Order[]
+  refresh_tokens    RefreshToken[]
+  otp_verifications OtpVerification[]
+
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  deleted_at DateTime?
+}
+
+model Product {
+  product_id   Int     @id @default(autoincrement())
+  category_id  Int
+  brand_id     Int
+  product_name String
+  slug         String  @unique
+  description  String?
+  price        Decimal @db.Decimal(10, 2)
+  stock        Int     @default(0)
+  thumbnail    String?
+
+  category Category @relation(fields: [category_id], references: [category_id])
+  brand    Brand    @relation(fields: [brand_id], references: [brand_id])
+
+  images      ProductImage[]
+  cart_items  CartItem[]
+  order_items OrderItem[]
+
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  deleted_at DateTime?
+}
+
+model Brand {
+  brand_id   Int     @id @default(autoincrement())
+  brand_name String
+  logo       String?
+
+  products Product[]
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model Category {
+  category_id   Int    @id @default(autoincrement())
+  category_name String
+  slug          String @unique
+
+  products Product[]
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model ProductImage {
+  product_image_id Int    @id @default(autoincrement())
+  product_id       Int
+  image_url        String
+
+  product Product @relation(fields: [product_id], references: [product_id])
+
+  created_at DateTime @default(now())
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum Status {
+  ACTIVE
+  BANNED
+  INACTIVE
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRM
+  SHIPPING
+  COMPLETED
+  CANCELLED
+}
+
+enum OtpType {
+  REGISTER
+  LOGIN
+  FORGOT_PASSWORD
+}
+
+model Cart {
+  cart_id Int @id @default(autoincrement())
+
+  user_id Int @unique
+
+  user  User       @relation(fields: [user_id], references: [user_id])
+  items CartItem[]
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model CartItem {
+  cart_item_id Int @id @default(autoincrement())
+  cart_id      Int
+  product_id   Int
+  quantity     Int @default(1)
+
+  cart    Cart    @relation(fields: [cart_id], references: [cart_id])
+  product Product @relation(fields: [product_id], references: [product_id])
+
+  @@unique([cart_id, product_id])
+}
+
+model Order {
+  order_id    Int         @id @default(autoincrement())
+  user_id     Int
+  total_price Decimal     @db.Decimal(10, 2)
+  status      OrderStatus @default(PENDING)
+
+  user User @relation(fields: [user_id], references: [user_id])
+
+  order_items OrderItem[]
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model OrderItem {
+  order_item_id Int     @id @default(autoincrement())
+  order_id      Int
+  product_id    Int
+  quantity      Int     @default(1)
+  price         Decimal @db.Decimal(10, 2)
+
+  order   Order   @relation(fields: [order_id], references: [order_id])
+  product Product @relation(fields: [product_id], references: [product_id])
+
+  @@unique([order_id, product_id])
+}
+
+model RefreshToken {
+  refresh_token_id Int @id @default(autoincrement())
+
+  user_id    Int
+  token      String
+  expires_at DateTime
+
+  user User @relation(fields: [user_id], references: [user_id])
+
+  created_at DateTime @default(now())
+}
+
+model OtpVerification {
+  otp_verification_id Int @id @default(autoincrement())
+
+  user_id    Int
+  otp_code   String
+  type       OtpType
+  expires_at DateTime
+  verified   Boolean  @default(false)
+
+  user User @relation(fields: [user_id], references: [user_id])
+
+  created_at DateTime @default(now())
 }
